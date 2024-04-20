@@ -99,6 +99,3 @@ class EmotionDetector:
         return emotion_counts
 
 
-# Example usage
-detector = EmotionDetector()
-detector.detect_emotions_to_json("vid.mp4")

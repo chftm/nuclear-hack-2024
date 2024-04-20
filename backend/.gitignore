@@ -1,6 +1,7 @@
 bin/
 configs
-model/audio/pretrained/
+model/audio/wav2vec2/
+model/audio/model_cache
 wav2vec2_checkpoints/
 .vscode/
 ffmpeg
