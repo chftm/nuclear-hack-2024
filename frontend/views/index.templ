@@ -1,0 +1,13 @@
+package views
+
+templ Index() {
+	<h2>Upload your video</h2>
+	<input
+		type="file"
+		name="file"
+		hx-post="/upload"
+		hx-encoding="multipart/form-data"
+		hx-target="main"
+		hx-push-url="/result"
+	/>
+}

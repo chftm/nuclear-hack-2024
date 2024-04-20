@@ -1,0 +1,20 @@
+package views
+
+templ Page(contents templ.Component) {
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>Emotion analyzer</title>
+			<script src="https://unpkg.com/htmx.org@1.9.4" integrity="sha384-zUfuhFKKZCbHTY6aRR46gxiqszMk5tcHjsVFxnUo8VMus4kHGVdIYVbOYYNlKmHV" crossorigin="anonymous"></script>
+			<script src="https://unpkg.com/htmx.org/dist/ext/loading-states.js"></script>
+			<link rel="stylesheet" href="/style.css"/>
+		</head>
+		<body hx-ext="loading-states">
+			<h1>Emotion analyzer</h1>
+			<main>
+				@contents
+			</main>
+		</body>
+	</html>
+}

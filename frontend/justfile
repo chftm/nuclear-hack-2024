@@ -1,0 +1,7 @@
+gen:
+    templ generate
+
+run:
+    go run .
+
+start: gen run
