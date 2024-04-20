@@ -1,194 +1,104 @@
 import numpy as np
-import argparse
-import matplotlib.pyplot as plt
 import cv2
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Flatten
 from keras.layers import Conv2D
-from keras.optimizers import Adam
 from keras.layers import MaxPooling2D
-from keras.src.legacy.preprocessing.image import ImageDataGenerator
-import os
-
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-
-# command line argument
-ap = argparse.ArgumentParser()
-ap.add_argument("--mode", help="train/display")
-mode = ap.parse_args().mode
+from keras.preprocessing.image import img_to_array
 
 
-# plots accuracy and loss curves
-def plot_model_history(model_history):
-    """
-    Plot Accuracy and Loss curves given the model_history
-    """
-    fig, axs = plt.subplots(1, 2, figsize=(15, 5))
-    # summarize history for accuracy
-    axs[0].plot(
-        range(1, len(model_history.history["accuracy"]) + 1),
-        model_history.history["accuracy"],
-    )
-    axs[0].plot(
-        range(1, len(model_history.history["val_accuracy"]) + 1),
-        model_history.history["val_accuracy"],
-    )
-    axs[0].set_title("Model Accuracy")
-    axs[0].set_ylabel("Accuracy")
-    axs[0].set_xlabel("Epoch")
-    axs[0].set_xticks(
-        np.arange(1, len(model_history.history["accuracy"]) + 1),
-        len(model_history.history["accuracy"]) / 10,
-    )
-    axs[0].legend(["train", "val"], loc="best")
-    # summarize history for loss
-    axs[1].plot(
-        range(1, len(model_history.history["loss"]) + 1), model_history.history["loss"]
-    )
-    axs[1].plot(
-        range(1, len(model_history.history["val_loss"]) + 1),
-        model_history.history["val_loss"],
-    )
-    axs[1].set_title("Model Loss")
-    axs[1].set_ylabel("Loss")
-    axs[1].set_xlabel("Epoch")
-    axs[1].set_xticks(
-        np.arange(1, len(model_history.history["loss"]) + 1),
-        len(model_history.history["loss"]) / 10,
-    )
-    axs[1].legend(["train", "val"], loc="best")
-    fig.savefig("plot.png")
-    plt.show()
+class EmotionDetector:
+    def __init__(
+        self, model_path="model.h5", cascade_path="haarcascade_frontalface_default.xml"
+    ):
+        self.model = self.load_model(model_path)
+        self.face_cascade = cv2.CascadeClassifier(cascade_path)
+        self.emotion_dict = {
+            0: "Angry",
+            1: "Disgusted",
+            2: "Fearful",
+            3: "Happy",
+            4: "Neutral",
+            5: "Sad",
+            6: "Surprised",
+            "No Face": "No Face",
+        }
 
-
-# Define data generators
-train_dir = "data/train"
-val_dir = "data/test"
-
-num_train = 28709
-num_val = 7178
-batch_size = 64
-num_epoch = 50
-
-train_datagen = ImageDataGenerator(rescale=1.0 / 255)
-val_datagen = ImageDataGenerator(rescale=1.0 / 255)
-
-train_generator = train_datagen.flow_from_directory(
-    train_dir,
-    target_size=(48, 48),
-    batch_size=batch_size,
-    color_mode="grayscale",
-    class_mode="categorical",
-)
-
-validation_generator = val_datagen.flow_from_directory(
-    val_dir,
-    target_size=(48, 48),
-    batch_size=batch_size,
-    color_mode="grayscale",
-    class_mode="categorical",
-)
-
-# Create the model
-model = Sequential()
-
-model.add(Conv2D(32, kernel_size=(3, 3), activation="relu", input_shape=(48, 48, 1)))
-model.add(Conv2D(64, kernel_size=(3, 3), activation="relu"))
-model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Dropout(0.25))
-
-model.add(Conv2D(128, kernel_size=(3, 3), activation="relu"))
-model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Conv2D(128, kernel_size=(3, 3), activation="relu"))
-model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Dropout(0.25))
-
-model.add(Flatten())
-model.add(Dense(1024, activation="relu"))
-model.add(Dropout(0.5))
-model.add(Dense(7, activation="softmax"))
-
-# If you want to train the same model or try other models, go for this
-if mode == "train":
-    model.compile(
-        loss="categorical_crossentropy",
-        optimizer=Adam(lr=0.0001, decay=1e-6),
-        metrics=["accuracy"],
-    )
-    model_info = model.fit_generator(
-        train_generator,
-        steps_per_epoch=num_train // batch_size,
-        epochs=num_epoch,
-        validation_data=validation_generator,
-        validation_steps=num_val // batch_size,
-    )
-    plot_model_history(model_info)
-    model.save_weights("model.h5")
-
-# emotions will be displayed on your face from the webcam feed
-elif mode == "display":
-    model.load_weights("model.h5")
-
-    # prevents openCL usage and unnecessary logging messages
-    cv2.ocl.setUseOpenCL(False)
-
-    # dictionary which assigns each label an emotion (alphabetical order)
-    emotion_dict = {
-        0: "Angry",
-        1: "Disgusted",
-        2: "Fearful",
-        3: "Happy",
-        4: "Neutral",
-        5: "Sad",
-        6: "Surprised",
-    }
-
-# Initialize emotion counters
-emotion_counts = {emotion: 0 for emotion in emotion_dict.values()}
-total_frames = 0
-
-# ... (previous code for model loading, emotion_dict, and emotion_counts initialization remains the same)
-
-total_frames = 0
-processed_frames = 0
-
-# start the video capture from file
-cap = cv2.VideoCapture("vid.mp4")
-fps = cap.get(cv2.CAP_PROP_FPS)  # Get frames per second
-total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))  # Get total frames
-
-while True:
-    # Find haar cascade to draw bounding box around face
-    ret, frame = cap.read()
-    if not ret:
-        break
-    processed_frames += 1
-
-    facecasc = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    faces = facecasc.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
-
-    for x, y, w, h in faces:
-        roi_gray = gray[y : y + h, x : x + w]
-        cropped_img = np.expand_dims(
-            np.expand_dims(cv2.resize(roi_gray, (48, 48)), -1), 0
+    def load_model(self, model_path):
+        model = Sequential(
+            [
+                Conv2D(
+                    32, kernel_size=(3, 3), activation="relu", input_shape=(48, 48, 1)
+                ),
+                Conv2D(64, kernel_size=(3, 3), activation="relu"),
+                MaxPooling2D(pool_size=(2, 2)),
+                Dropout(0.25),
+                Conv2D(128, kernel_size=(3, 3), activation="relu"),
+                MaxPooling2D(pool_size=(2, 2)),
+                Conv2D(128, kernel_size=(3, 3), activation="relu"),
+                MaxPooling2D(pool_size=(2, 2)),
+                Dropout(0.25),
+                Flatten(),
+                Dense(1024, activation="relu"),
+                Dropout(0.5),
+                Dense(7, activation="softmax"),
+            ]
         )
-        prediction = model.predict(cropped_img)
-        maxindex = int(np.argmax(prediction))
-        emotion = emotion_dict[maxindex]
-        emotion_counts[emotion] += 1
-    # Print processing percentage
-    percentage = processed_frames / total_frames * 100
-    print(
-        f"Processing: {percentage:.1f}%", end="\r"
-    )  # Use end="\r" to overwrite the same line
+        model.load_weights(model_path)
+        return model
 
-cap.release()
+    def detect_emotions(self, video_path):
+        cap = cv2.VideoCapture(video_path)
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-# ... (duration calculation and printing remains the same)
+        emotion_counts = {emotion: 0 for emotion in self.emotion_dict.values()}
+        processed_frames = 0
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            processed_frames += 1
+
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = self.face_cascade.detectMultiScale(
+                gray, scaleFactor=1.3, minNeighbors=5
+            )
+
+            if len(faces) == 0:
+                emotion_counts["No Face"] += 1
+
+            for x, y, w, h in faces:
+                roi_gray = gray[y : y + h, x : x + w]
+                roi_gray = cv2.resize(roi_gray, (48, 48))
+                roi_gray = roi_gray.astype("float") / 255.0
+                roi_gray = img_to_array(roi_gray)
+                roi_gray = np.expand_dims(roi_gray, axis=0)
+                roi_gray = np.expand_dims(roi_gray, axis=-1)
+
+                prediction = self.model.predict(roi_gray)[0]
+                max_index = np.argmax(prediction)
+                emotion = self.emotion_dict[max_index]
+                emotion_counts[emotion] += 1
+
+            print(f"Processing: {processed_frames / total_frames * 100:.1f}%", end="\r")
+
+        cap.release()
+
+        # Convert duration to seconds based on fps
+        for emotion, count in emotion_counts.items():
+            duration_seconds = count / fps
+            emotion_counts[emotion] = duration_seconds
+
+        return emotion_counts
+
+    def detect_emotions_to_json(self, video_path):
+        emotion_counts = self.detect_emotions(video_path)
+        print(emotion_counts)
+        return emotion_counts
 
 
-# Calculate duration and print results
-for emotion, count in emotion_counts.items():
-    duration = count / fps
-    print(f"{emotion}: {duration:.0f} seconds")
+# Example usage
+detector = EmotionDetector()
+detector.detect_emotions_to_json("vid.mp4")
