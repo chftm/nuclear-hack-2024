@@ -5,6 +5,7 @@ from keras.layers import Dense, Dropout, Flatten
 from keras.layers import Conv2D
 from keras.layers import MaxPooling2D
 from keras.preprocessing.image import img_to_array
+import json
 
 
 class EmotionDetector:
@@ -93,9 +94,9 @@ class EmotionDetector:
 
         return emotion_counts
 
-    def detect_emotions_to_json(self, video_path):
+    def detect_emotions_to_json(self, video_path, json_path):
         emotion_counts = self.detect_emotions(video_path)
-        print(emotion_counts)
-        return emotion_counts
+        with open(json_path, 'w') as f:
+            json.dump(emotion_counts, f, indent=4)
 
 
