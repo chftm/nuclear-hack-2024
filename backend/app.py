@@ -1,21 +1,24 @@
 """Main application."""
 
+from __future__ import annotations
+
+import os
 import pathlib
 import shutil
 import uuid
 
-import flask
+from audio_splitter.main import split_audio  # type: ignore[import]
+from flask import Flask, Response, abort, make_response, request
 
-from model.audio.predict import Speech2EmotionModel
-from modules.audioprocessing import to_chunks, to_wav
+from model.audio.predict import Speech2EmotionModel  # type: ignore[import]
 
 s2e = Speech2EmotionModel()
 
-app = flask.Flask(__name__)
+app = Flask(__name__)
 
 
 @app.route("/classify_audio", methods=["POST"])
-def classify() -> flask.Response:
+def classify() -> Response:
     """Classify audio file.
 
     Returns
@@ -23,28 +26,35 @@ def classify() -> flask.Response:
         flask.Response: JSON response
 
     """
-    input_file = flask.request.files.get("file")
+    chunk_len = 10  # in seconds
+
+    input_file = request.files.get("file")
     if input_file is None or input_file.filename == "":
-        flask.abort(400)
+        abort(400)
 
-    uploaded_path = f"data/audios/{uuid.uuid4()}" + input_file.filename
-    input_file.save(uploaded_path)
+    input_file_path = "data/audios/" + str(uuid.uuid4()) + input_file.filename
+    input_file.save(input_file_path)
 
-    new_path = to_wav(pathlib.Path(uploaded_path))
-    pathlib.Path(uploaded_path).unlink()
+    dir_path = f"data/audios/{uuid.uuid4()}/"
 
-    result = []
-    folder_id = str(uuid.uuid4())
-    parent_path = f"model/audio/{folder_id}"
+    split_audio(
+        input_file_path,
+        dir_path,
+        chunk_len * 1000,
+        output_format="wav",
+        silence_based=False,
+    )
 
-    for path in to_chunks(audio_file=new_path, parent_path=parent_path):
-        result.append(s2e.predict(path))
-        pathlib.Path(path).unlink()
+    pathlib.Path(input_file_path).unlink()
+    result: list[tuple[int, str]] = []
 
-    new_path.unlink()
-    shutil.rmtree(parent_path)
+    for ind, chunk in enumerate(os.listdir(dir_path)):
+        time = ind * 10
+        result.append((time, s2e.predict(dir_path + chunk)))
 
-    return flask.make_response({"result": result}, 200)
+    shutil.rmtree(dir_path)
+
+    return make_response(result, 200)
 
 
 if __name__ == "__main__":

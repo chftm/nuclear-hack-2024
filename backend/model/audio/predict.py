@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from speechbrain.inference.interfaces import foreign_class  # type: ignore[import]
+import pathlib
 
 
 class Speech2EmotionModel:
@@ -18,6 +19,8 @@ class Speech2EmotionModel:
             huggingface_cache_dir="model/audio/model_cache",
         )
 
-    def predict(self: Speech2EmotionModel, audio_path: str) -> tuple:
+    def predict(self: Speech2EmotionModel, audio_path: str) -> str:
         """Predict emotion from audio file."""
-        return self.classifier.classify_file(audio_path)  # type: ignore[no-any-return]
+        result = self.classifier.classify_file(audio_path)[-1][0]
+        pathlib.Path(audio_path).unlink()
+        return result  # type: ignore[no-any-return]
