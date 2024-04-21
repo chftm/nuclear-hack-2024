@@ -11,6 +11,7 @@ from flask import Flask, Response, abort, make_response, request
 import json
 from model.audio.predict import Speech2EmotionModel  # type: ignore[import]
 from model.face.src.emotions import EmotionDetector
+from rectangles import check_green_border
 
 s2e = Speech2EmotionModel()
 
@@ -90,6 +91,14 @@ def classify_video() -> Response:
     pathlib.Path(result_path).unlink()
 
     return make_response(json.dumps(result), 200)
+
+@app.route('/check_green_border', methods=['POST'])
+def check_green_border_route():
+    data = request.get_json()
+    image_path = data.get('image_path')
+    coordinates = data.get('coordinates')
+    result = check_green_border(image_path, coordinates)
+    return make_response(result, 200)
 
 
 if __name__ == "__main__":
