@@ -1,4 +1,4 @@
-![Статус проекта: Фрагменты](https://raw.githubusercontent.com/chftm/brand/main/Project%20Status/fragments.svg)
+![Статус проекта: Фрагменты](https://raw.githubusercontent.com/chftm/brand/main/Project%20Status/almost_finished.svg)
 
 # 💻 [Nuclear IT Hack 2024](https://nuclearhack.mephi.ru/)
 
